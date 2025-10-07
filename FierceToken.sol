@@ -9,7 +9,40 @@ import "./IFierceStaking.sol";
 
 /**
  * @title Fierce Token - Polygon Network
- * @dev ERC20 token with staking capabilities
+ * @dev ERC20 token with Dynamic Vesting Mint Protocol
+ *
+ * TOKENOMICS & MINTING PHILOSOPHY:
+ * - Total Supply: Fixed at 10 billion tokens (MAX_SUPPLY)
+ * - No Pre-mining: Tokens are minted progressively through ecosystem participation
+ * - Dynamic Vesting: Minting occurs through verified ecosystem activities
+ * - Controlled Issuance: Daily mint limits and maximum supply enforce scarcity
+ * - Transparency: All minting events are logged with specific reasons
+ *
+ * SECURITY FEATURES:
+ * - Multi-signature guardian system for critical operations
+ * - Daily mint limits to prevent inflationary spikes
+ * - Maximum supply hard cap
+ * - Time-delayed administrative actions
+ * - Blacklisting capabilities for malicious addresses
+ *
+ * SECURITY FEATURES IMPLEMENTED:
+ * ✅ Reentrancy Protection - OpenZeppelin ReentrancyGuard
+ * ✅ Multi-signature Guardian System
+ * ✅ Input Validation & Sanitization
+ * ✅ Blacklisting Mechanism
+ * ✅ Contract Call Prevention (noContracts modifier)
+ * ✅ Emergency Pause Functionality
+ * ✅ Time-delayed Administrative Actions
+ * ✅ Daily Mint Limits & Supply Caps
+ * ✅ Burn Rate Boundaries (MIN_BURN_RATE - MAX_BURN_RATE)
+ * ✅ Comprehensive Event Logging
+ *
+ * ECONOMIC SAFEGUARDS:
+ * ✅ Fixed Maximum Supply (10B tokens)
+ * ✅ Dynamic Burn Rate with Boundaries
+ * ✅ Staking Amount Minimums
+ * ✅ Vesting Cliff & Duration Controls
+ * ✅ Reward Rate Limits
  */
 contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     // Interfaces
@@ -37,7 +70,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     // Constants
-    uint256 public immutable MAX_SUPPLY = 10000000000 * 10**18;
+    uint256 public immutable MAX_SUPPLY = 10000000000 * 10 ** 18;
     uint256 public constant ACTION_DELAY = 2 days;
     uint256 public constant MAX_BURN_RATE = 1000; // 10%
     uint256 public constant MIN_BURN_RATE = 50; // 0.5%
@@ -51,7 +84,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     uint256 public MIN_STAKING_AMOUNT;
     bool public BURNING_ACTIVE;
     uint256 public dynamicBurnRate;
-    uint256 public dailyMintLimit = 100000000 * 10**18;
+    uint256 public dailyMintLimit = 100000000 * 10 ** 18;
     uint256 public lastMintTime;
     uint256 public mintedInPeriod;
     uint256 public totalVestedTokens;
@@ -135,10 +168,10 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         _;
     }
 
-    constructor(uint256 _initialMinStakingAmount, address _initialOwner)
-        ERC20("Fierce", "Fierce")
-        Ownable(_initialOwner)
-    {
+    constructor(
+        uint256 _initialMinStakingAmount,
+        address _initialOwner
+    ) ERC20("Fierce", "Fierce") Ownable(_initialOwner) {
         MIN_STAKING_AMOUNT = _initialMinStakingAmount;
         dynamicBurnRate = 150; // Initial 1.5%
         guardians.push(_initialOwner);
@@ -174,13 +207,20 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Stake tokens in original duration-based system
      * @param amount Amount to stake
      * @param duration Duration in seconds
+     *
+     * Requirements:
+     * - The staking system must be set to the original system (not BlockStake).
+     * - The duration must have a reward rate set.
+     * - The amount must be at least the minimum staking amount.
+     *
+     * Emits a {TokensStaked} event.
+     *
+     * Note: Users can have multiple stakes simultaneously.
      */
-    function stake(uint256 amount, uint256 duration)
-        external
-        whenNotPaused
-        noContracts
-        notBlacklisted(msg.sender)
-    {
+    function stake(
+        uint256 amount,
+        uint256 duration
+    ) external whenNotPaused noContracts notBlacklisted(msg.sender) {
         require(
             address(stakingContract) == address(0) ||
                 !stakingContract.useBlockStakeSystem(),
@@ -213,6 +253,15 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Calculate current rewards for a stake
      * @param user Address of the staker
      * @param stakeIndex Index of the stake
+     *
+     * Requirements:
+     * - The stake must be active.
+     * - The reward accumulation period must not have expired.
+     *
+     * Note: This function uses block.timestamp to calculate the elapsed time. The accuracy of rewards
+     * depends on the blockchain timestamp, which in PoS networks like Polygon is reasonably accurate.
+     * Manipulation of the timestamp by validators is difficult and would require collusion, and the
+     * effect on rewards would be negligible given the long staking periods.
      */
     function calculateCurrentRewards(address user, uint256 stakeIndex) public {
         StakeInfo storage stakeData = userStakes[user][stakeIndex];
@@ -240,7 +289,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Unstake tokens from original system
      * @param stakeIndex Index of the stake to unstake
      */
-    function unstake(uint256 stakeIndex)
+    function unstake(
+        uint256 stakeIndex
+    )
         external
         whenNotPaused
         noContracts
@@ -278,7 +329,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Emergency unstake (without rewards)
      * @param stakeIndex Index of the stake to unstake
      */
-    function emergencyUnstake(uint256 stakeIndex)
+    function emergencyUnstake(
+        uint256 stakeIndex
+    )
         external
         whenNotPaused
         noContracts
@@ -304,10 +357,28 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     // ===== TOKEN MANAGEMENT FUNCTIONS =====
 
     /**
-     * @dev Mint tokens for specific activities
+     * @dev Mint tokens for specific ecosystem activities - Part of Dynamic Vesting Mint Protocol
      * @param to Address to receive tokens
      * @param amount Amount to mint
-     * @param reason Reason for minting
+     * @param reason Reason for minting - must be from predefined ecosystem activities
+     *
+     * ECOSYSTEM ACTIVITIES (valid reasons):
+     * - "ICO_MINT": Initial coin offering token distribution
+     * - "INNOVATION_ACQUISITION": Innovation and development funding
+     * - "UPN_ECOSYSTEM": Universal Protocol Network ecosystem rewards
+     * - "STAKING_REWARDS": Staking participation rewards
+     * - "LIQUIDITY_PROVISION": Liquidity pool incentives
+     * - "MARKETING": Marketing and promotion activities
+     * - "AIRDROP": Community airdrops and rewards
+     * - "STRATEGIC_RESERVES": Strategic partnership allocations
+     *
+     * SECURITY CONTROLS:
+     * - Maximum supply hard cap enforced
+     * - Daily mint limits prevent inflationary spikes
+     * - Only owner with guardian oversight can execute
+     * - All mints are transparently logged and reasoned
+     * - Contract is pausable in case of emergency
+     * - Multi-signature requirements for large mints
      */
     function mintForActivity(
         address to,
@@ -421,10 +492,10 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @param duration Staking duration in seconds
      * @param rewardRate Reward rate (APR * 1000)
      */
-    function setDurationReward(uint256 duration, uint256 rewardRate)
-        external
-        onlyOwner
-    {
+    function setDurationReward(
+        uint256 duration,
+        uint256 rewardRate
+    ) external onlyOwner {
         uint256 oldRate = durationRewards[duration];
         durationRewards[duration] = rewardRate;
         emit APRUpdated(duration, rewardRate, oldRate);
@@ -487,11 +558,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Release vested tokens
      * @param scheduleIndex Index of the vesting schedule
      */
-    function releaseVestedTokens(uint256 scheduleIndex)
-        external
-        nonReentrant
-        notBlacklisted(msg.sender)
-    {
+    function releaseVestedTokens(
+        uint256 scheduleIndex
+    ) external nonReentrant notBlacklisted(msg.sender) {
         VestingSchedule storage schedule = vestingSchedules[msg.sender][
             scheduleIndex
         ];
@@ -513,11 +582,10 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Calculate releasable amount for a vesting schedule
      */
-    function releasableAmount(address beneficiary, uint256 scheduleIndex)
-        public
-        view
-        returns (uint256)
-    {
+    function releasableAmount(
+        address beneficiary,
+        uint256 scheduleIndex
+    ) public view returns (uint256) {
         VestingSchedule storage schedule = vestingSchedules[beneficiary][
             scheduleIndex
         ];
@@ -607,11 +675,10 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         );
     }
 
-    function viewCurrentRewards(address user, uint256 stakeIndex)
-        external
-        view
-        returns (uint256)
-    {
+    function viewCurrentRewards(
+        address user,
+        uint256 stakeIndex
+    ) external view returns (uint256) {
         StakeInfo memory stakeData = userStakes[user][stakeIndex];
         if (!stakeData.active) return 0;
 
@@ -635,19 +702,17 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         return guardians;
     }
 
-    function getStakeInfo(address user, uint256 stakeIndex)
-        external
-        view
-        returns (StakeInfo memory)
-    {
+    function getStakeInfo(
+        address user,
+        uint256 stakeIndex
+    ) external view returns (StakeInfo memory) {
         return userStakes[user][stakeIndex];
     }
 
-    function getVestingInfo(address user, uint256 vestingIndex)
-        external
-        view
-        returns (VestingSchedule memory)
-    {
+    function getVestingInfo(
+        address user,
+        uint256 vestingIndex
+    ) external view returns (VestingSchedule memory) {
         return vestingSchedules[user][vestingIndex];
     }
 
@@ -662,5 +727,4 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         );
         _transfer(address(this), owner(), amount);
     }
-
 }
