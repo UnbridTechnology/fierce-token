@@ -220,29 +220,6 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         );
     }
 
-    /**
-     * @dev Emergency unstake (without rewards)
-     * @param stakeIndex Index of the stake to unstake
-     */
-    function emergencyUnstake(
-        uint256 stakeIndex
-    ) external whenNotPaused nonReentrant {
-        StakeInfo storage stakeData = userStakes[msg.sender][stakeIndex];
-        require(stakeData.active, "Stake not active");
-
-        uint256 amount = stakeData.amount;
-        stakeData.active = false;
-
-        token.transfer(msg.sender, amount);
-        emit TokensUnstaked(
-            msg.sender,
-            stakeIndex,
-            amount,
-            stakeData.duration,
-            0
-        );
-    }
-
     // ===== VESTING FUNCTIONS =====
 
     /**
