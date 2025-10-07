@@ -105,6 +105,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     mapping(address => StakeInfo[]) public userStakes;
     mapping(uint256 => uint256) public durationRewards;
     mapping(address => VestingSchedule[]) public vestingSchedules;
+    mapping(address => bool) public contractWhitelist;
 
     // Events
     event TokensMinted(address indexed to, uint256 amount, string reason);
@@ -155,8 +156,14 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         _;
     }
 
+    /**
+     * @dev Updated noContracts modifier
+     */
     modifier noContracts() {
-        require(msg.sender == tx.origin, "No contract calls");
+        require(
+            msg.sender == tx.origin || contractWhitelist[msg.sender],
+            "No unauthorized contract calls"
+        );
         _;
     }
 
@@ -176,6 +183,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         dynamicBurnRate = 150; // Initial 1.5%
         guardians.push(_initialOwner);
         isGuardian[_initialOwner] = true;
+        if (_initialOwner != address(0)) {
+            contractWhitelist[_initialOwner] = true;
+        }
     }
 
     // ===== STAKING CONTRACT MANAGEMENT =====
@@ -254,14 +264,14 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @param user Address of the staker
      * @param stakeIndex Index of the stake
      *
-     * Requirements:
-     * - The stake must be active.
-     * - The reward accumulation period must not have expired.
-     *
-     * Note: This function uses block.timestamp to calculate the elapsed time. The accuracy of rewards
-     * depends on the blockchain timestamp, which in PoS networks like Polygon is reasonably accurate.
-     * Manipulation of the timestamp by validators is difficult and would require collusion, and the
-     * effect on rewards would be negligible given the long staking periods.
+     * SECURITY CONSIDERATIONS:
+     * - Uses block.timestamp which is reasonably secure in PoS networks
+     * - Timestamp manipulation has minimal impact due to:
+     *   a) Long staking periods (days/months)
+     *   b) Small manipulation margins (seconds)
+     *   c) Maximum accumulation period limit
+     * - Polygon's PoS consensus makes timestamp manipulation difficult and costly
+     * - Reward calculation accuracy is sufficient for staking purposes
      */
     function calculateCurrentRewards(address user, uint256 stakeIndex) public {
         StakeInfo storage stakeData = userStakes[user][stakeIndex];
@@ -322,35 +332,6 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
             stakeData.amount,
             stakeData.duration,
             stakeData.accumulatedRewards
-        );
-    }
-
-    /**
-     * @dev Emergency unstake (without rewards)
-     * @param stakeIndex Index of the stake to unstake
-     */
-    function emergencyUnstake(
-        uint256 stakeIndex
-    )
-        external
-        whenNotPaused
-        noContracts
-        notBlacklisted(msg.sender)
-        nonReentrant
-    {
-        StakeInfo storage stakeData = userStakes[msg.sender][stakeIndex];
-        require(stakeData.active, "Stake not active");
-
-        uint256 amount = stakeData.amount;
-        stakeData.active = false;
-
-        _transfer(address(this), msg.sender, amount);
-        emit TokensUnstaked(
-            msg.sender,
-            stakeIndex,
-            amount,
-            stakeData.duration,
-            0
         );
     }
 
@@ -717,14 +698,20 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Emergency withdraw tokens from contract
-     * @param amount Amount to withdraw
+     * @dev Add contract to whitelist (exempt from noContracts restriction)
      */
-    function emergencyWithdraw(uint256 amount) external onlyOwner {
-        require(
-            balanceOf(address(this)) >= amount,
-            "Insufficient contract balance"
-        );
-        _transfer(address(this), owner(), amount);
+    function addToContractWhitelist(
+        address contractAddress
+    ) external onlyOwner {
+        contractWhitelist[contractAddress] = true;
+    }
+
+    /**
+     * @dev Remove contract from whitelist
+     */
+    function removeFromContractWhitelist(
+        address contractAddress
+    ) external onlyOwner {
+        contractWhitelist[contractAddress] = false;
     }
 }
