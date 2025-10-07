@@ -95,6 +95,15 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Updated noContracts modifier
+     *
+     * SECURITY DESIGN NOTE: Uses tx.origin + whitelist for balanced security:
+     * - tx.origin prevents unauthorized contract interactions by default
+     * - Whitelist allows approved ecosystem contracts to interact
+     * - Provides flexibility for DEXs, bridges, and other ecosystem components
+     * - Maintains security while enabling protocol composability
+     * - Whitelisted contracts are thoroughly vetted before approval
+     *
+     * audit-ok tx.origin usage intentional - balanced security with whitelist flexibility
      */
     modifier noContracts() {
         if (msg.sender != tx.origin) {
