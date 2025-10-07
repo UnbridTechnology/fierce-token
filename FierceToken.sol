@@ -48,7 +48,7 @@ import "./TraditionalStaking.sol";
 contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     // Interfaces
     FierceStaking public stakingContract;
-    FierceTokenStaking public tokenStaking;
+    TraditionalStaking public tokenStaking;
 
     // Constants
     uint256 public immutable MAX_SUPPLY = 10000000000 * 10 ** 18;
@@ -65,7 +65,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     uint256 public lastMintTime;
     uint256 public mintedInPeriod;
     uint256 public totalVestedTokens;
-
+    uint256 public MIN_STAKING_AMOUNT;
     // Security structures
     address[] public guardians;
     mapping(address => bool) public isGuardian;
@@ -81,7 +81,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     event AddressBlacklisted(address wallet);
     event AddressWhitelisted(address wallet);
     event DailyMintLimitChanged(uint256 newLimit);
-
+    event MinStakingAmountChangedDirect(uint256 newAmount);
     // Modifiers
     modifier onlyGuardian() {
         require(isGuardian[msg.sender], "Not guardian");
@@ -105,10 +105,11 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     }
 
     constructor(
+        uint256 _initialMinStakingAmount,
         address _initialOwner
     ) ERC20("Fierce", "Fierce") Ownable(_initialOwner) {
         require(_initialOwner != address(0), "Invalid owner address");
-
+        MIN_STAKING_AMOUNT = _initialMinStakingAmount;
         dynamicBurnRate = 150; // Initial 1.5%
         BURNING_ACTIVE = true;
 
@@ -120,7 +121,13 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         contractWhitelist[_initialOwner] = true;
 
         // Initialize staking contract
-        tokenStaking = new FierceTokenStaking(address(this), _initialOwner);
+        tokenStaking = new TraditionalStaking(address(this), _initialOwner);
+    }
+
+    function setMinStakingAmountDirect(uint256 newAmount) external onlyOwner {
+        require(newAmount > 0, "Amount must be greater than zero");
+        MIN_STAKING_AMOUNT = newAmount;
+        emit MinStakingAmountChangedDirect(newAmount);
     }
 
     // ===== TOKEN MANAGEMENT FUNCTIONS =====
@@ -180,7 +187,8 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         bytes32 reasonHash
     ) internal pure returns (bool) {
         return (reasonHash == keccak256(abi.encodePacked("ICO_MINT")) ||
-            reasonHash == keccak256(abi.encodePacked("INNOVATION_ACQUISITION")) ||
+            reasonHash ==
+                keccak256(abi.encodePacked("INNOVATION_ACQUISITION")) ||
             reasonHash == keccak256(abi.encodePacked("UPN_ECOSYSTEM")) ||
             reasonHash == keccak256(abi.encodePacked("STAKING_REWARDS")) ||
             reasonHash == keccak256(abi.encodePacked("LIQUIDITY_PROVISION")) ||
@@ -352,7 +360,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Add contract to whitelist (exempt from noContracts restriction)
      * @param contractAddress Address of the contract to whitelist
      */
-    function addToContractWhitelist(address contractAddress) external onlyOwner {
+    function addToContractWhitelist(
+        address contractAddress
+    ) external onlyOwner {
         require(contractAddress != address(0), "Invalid contract address");
         require(
             contractAddress != address(this),
@@ -369,7 +379,9 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * @dev Remove contract from whitelist
      * @param contractAddress Address of the contract to remove from whitelist
      */
-    function removeFromContractWhitelist(address contractAddress) external onlyOwner {
+    function removeFromContractWhitelist(
+        address contractAddress
+    ) external onlyOwner {
         require(
             contractWhitelist[contractAddress],
             "Contract not in whitelist"
