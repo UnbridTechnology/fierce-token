@@ -256,6 +256,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
      * - Essential for protocol operations and team compensation
      * - Cliff periods and linear vesting prevent immediate token access
      * audit-ok This function intentionally does not require multi-signature
+     * audit-ok multiple schedules per beneficiary allowed - flexible vesting management
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check

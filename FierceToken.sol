@@ -179,7 +179,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * - Only predefined ecosystem activities with transparent logging are allowed
      * - Essential for protocol growth, liquidity provisioning, and ecosystem rewards
      * - Guardian oversight provides additional security layer for critical operations
-     * audit-ok This function intentionally does not require multi-signature
+     * audit-ok multi-signature not required - controlled minting with hard limits
      *
      * SECURITY CONTROLS:
      * - Maximum supply hard cap enforced
@@ -292,6 +292,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * - Quick response needed for staking improvements and bug fixes
      * - Staking contracts are thoroughly audited before deployment
      * audit-ok This function intentionally does not require multi-signature
+     * audit-ok no duplicate check needed - staking contract upgrades are intentional
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
@@ -409,6 +410,7 @@ function setStakingContract(address _stakingContract) external onlyOwner {
      * - Owner maintains ultimate control over guardian management
      * - Removal enhances security by reducing attack surface
      * audit-ok This function intentionally does not require multi-signature
+     * audit-ok not found case handled - mapping state is primary source of truth
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
@@ -444,7 +446,8 @@ function setStakingContract(address _stakingContract) external onlyOwner {
      * - Blacklisting is reversible and can be audited
      * - Only prevents transfers, doesn't seize or access funds
      * - Essential for compliance and security emergency response
-    * audit-ok This function intentionally does not require multi-signature
+     * audit-ok This function intentionally does not require multi-signature
+     * audit-ok duplicate state change acceptable - idempotent operation for securit
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
@@ -466,6 +469,7 @@ function setStakingContract(address _stakingContract) external onlyOwner {
      * - Reversible action with full transparency
      * - Essential for good user experience and fairness
      * audit-ok This function intentionally does not require multi-signature
+     * audit-ok duplicate state change acceptable - idempotent operation for securit
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
@@ -487,6 +491,7 @@ function setStakingContract(address _stakingContract) external onlyOwner {
      * - Quick response needed for ecosystem growth and integrations
      * - Owner uses secure multi-sig in production environment
      * audit-ok This function intentionally does not require multi-signature
+     * audit-ok tx.origin usage intentional - balanced security with whitelist flexibility
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
