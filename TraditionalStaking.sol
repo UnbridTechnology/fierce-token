@@ -107,8 +107,10 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
      * - Gas efficiency for frequent staking operations
      * - Main security layer is in FierceToken contract
      * - Staking rewards are time-based, minimizing flash loan risks
+     * - Combined with reentrancy protection for comprehensive security
      *
      * audit-ok tx.origin usage intentional - simplified staking security model
+     * Combined with ReentrancyGuard for defense in depth
      */
     modifier noContracts() {
         require(msg.sender == tx.origin, "No contract calls");
@@ -138,7 +140,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         uint256 duration
     ) external whenNotPaused noContracts {
         require(durationRewards[duration] > 0, "Invalid duration");
-        require(amount >= token.MIN_STAKING_AMOUNT(), "Amount too low"); // ← USAR DEL TOKEN
+        require(amount >= token.MIN_STAKING_AMOUNT(), "Amount too low");
 
         StakeInfo memory newStake = StakeInfo({
             amount: amount,
@@ -151,7 +153,10 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         });
 
         userStakes[msg.sender].push(newStake);
-        token.transferFrom(msg.sender, address(this), amount);
+
+        bool success = token.transferFrom(msg.sender, address(this), amount);
+        require(success, "Token transfer failed");
+
         emit TokensStaked(
             msg.sender,
             userStakes[msg.sender].length - 1,
@@ -213,7 +218,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         require(
             userStakes[msg.sender].length > stakeIndex,
             "Stake does not exist"
-        ); // ← AGREGAR ESTA LÍNEA
+        );
 
         StakeInfo storage stakeData = userStakes[msg.sender][stakeIndex];
         require(stakeData.active, "Stake not active");
@@ -226,8 +231,9 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
 
         uint256 totalAmount = stakeData.amount + stakeData.accumulatedRewards;
         stakeData.active = false;
+        bool success = token.transfer(msg.sender, totalAmount);
+        require(success, "Token transfer failed");
 
-        token.transfer(msg.sender, totalAmount);
         emit TokensUnstaked(
             msg.sender,
             stakeIndex,
@@ -248,6 +254,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
      * - Transparent creation with full parameter visibility
      * - No immediate token transfers, only time-based releases
      * - Essential for protocol operations and team compensation
+     * - Cliff periods and linear vesting prevent immediate token access
      *
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
