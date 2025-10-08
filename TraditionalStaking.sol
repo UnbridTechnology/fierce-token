@@ -98,20 +98,20 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         uint256 amount
     );
 
-    /**
-     * @dev Enhanced noContracts modifier with additional security checks
-     *
-     * SECURITY DESIGN NOTE: Uses tx.origin for the following reasons:
-     * - Traditional staking is designed for direct user interactions only
-     * - Prevents complex contract interactions that could exploit reward mechanisms
-     * - Gas efficiency for frequent staking operations
-     * - Main security layer is in FierceToken contract
-     * - Staking rewards are time-based, minimizing flash loan risks
-     * - Combined with reentrancy protection for comprehensive security
-     *
-     * audit-ok tx.origin usage intentional - simplified staking security model
-     * Combined with ReentrancyGuard for defense in depth
-     */
+/**
+ * @dev Enhanced noContracts modifier with additional security checks
+ *
+ * SECURITY DESIGN NOTE: Uses tx.origin for the following reasons:
+ * - Traditional staking is designed for direct user interactions only
+ * - Prevents complex contract interactions that could exploit reward mechanisms
+ * - Gas efficiency for frequent staking operations
+ * - Main security layer is in FierceToken contract
+ * - Staking rewards are time-based, minimizing flash loan risks
+ * - Combined with reentrancy protection for comprehensive security
+ *
+ * audit-ok tx.origin usage intentional - simplified staking security model
+ * Combined with ReentrancyGuard for defense in depth
+ */
     modifier noContracts() {
         require(msg.sender == tx.origin, "No contract calls");
         _;

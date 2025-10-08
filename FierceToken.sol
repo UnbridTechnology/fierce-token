@@ -93,19 +93,19 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
         _;
     }
 
-    /**
-     * @dev Updated noContracts modifier
-     *
-     * SECURITY DESIGN NOTE: Uses tx.origin + whitelist for balanced security:
-     * - tx.origin prevents unauthorized contract interactions by default
-     * - Whitelist allows approved ecosystem contracts to interact
-     * - Provides flexibility for DEXs, bridges, and other ecosystem components
-     * - Maintains security while enabling protocol composability
-     * - Whitelisted contracts are thoroughly vetted before approval
-     *
-     * audit-ok tx.origin usage intentional - balanced security with whitelist flexibility
-     * Combined with comprehensive input validation and reentrancy protection
-     */
+/**
+ * @dev Updated noContracts modifier
+ *
+ * SECURITY DESIGN NOTE: Uses tx.origin + whitelist for balanced security:
+ * - tx.origin prevents unauthorized contract interactions by default
+ * - Whitelist allows approved ecosystem contracts to interact
+ * - Provides flexibility for DEXs, bridges, and other ecosystem components
+ * - Maintains security while enabling protocol composability
+ * - Whitelisted contracts are thoroughly vetted before approval
+ *
+ * audit-ok tx.origin usage intentional - balanced security with whitelist flexibility
+ * Combined with comprehensive input validation and reentrancy protection
+ */
     modifier noContracts() {
         if (msg.sender != tx.origin) {
             require(
@@ -294,17 +294,17 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line locked-ether
      * // slither-disable-next-line missing-zero-check
      */
-    function setStakingContract(address _stakingContract) external onlyOwner {
-        require(
-            _stakingContract != address(0),
-            "Invalid staking contract address"
-        );
-        require(
-            _isValidWhitelistedContract(_stakingContract),
-            "Invalid contract address"
-        );
-        stakingContract = FierceStaking(_stakingContract);
-    }
+function setStakingContract(address _stakingContract) external onlyOwner {
+    require(
+        _stakingContract != address(0),
+        "Invalid staking contract address"
+    );
+    require(
+        _isValidWhitelistedContract(_stakingContract),
+        "Invalid contract address"
+    );
+    stakingContract = FierceStaking(_stakingContract);
+}
 
     /**
      * @dev Toggle between original staking system and BlockStake system
