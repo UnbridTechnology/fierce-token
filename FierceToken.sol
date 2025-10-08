@@ -104,6 +104,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * - Whitelisted contracts are thoroughly vetted before approval
      *
      * audit-ok tx.origin usage intentional - balanced security with whitelist flexibility
+     * Combined with comprehensive input validation and reentrancy protection
      */
     modifier noContracts() {
         if (msg.sender != tx.origin) {
@@ -294,10 +295,13 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line missing-zero-check
      */
     function setStakingContract(address _stakingContract) external onlyOwner {
-        // @audit-ok Multi-signature not required in current implementation
         require(
             _stakingContract != address(0),
             "Invalid staking contract address"
+        );
+        require(
+            _isValidWhitelistedContract(_stakingContract),
+            "Invalid contract address"
         );
         stakingContract = FierceStaking(_stakingContract);
     }
@@ -316,16 +320,10 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line locked-ether
      */
     function toggleStakingSystem(bool _useBlockStake) external onlyOwner {
-        // @audit-ok Multi-signature not required in current implementation
         require(
             address(stakingContract) != address(0),
             "Staking contract not set"
         );
-        require(
-            address(stakingContract) != address(0),
-            "Staking contract not set"
-        );
-
         stakingContract.setStakingSystem(_useBlockStake);
         tokenStaking.emitStakingSystemChanged(_useBlockStake);
     }
@@ -387,7 +385,6 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line missing-zero-check
      */
     function addGuardian(address guardian) external onlyOwner {
-        // @audit-ok Multi-signature not required in current implementation
         require(guardian != address(0), "Invalid guardian address");
         require(!isGuardian[guardian], "Address is already a guardian");
         require(guardian != owner(), "Owner is already a guardian by default");
@@ -417,14 +414,17 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
 
         isGuardian[guardian] = false;
 
-        // Remove from guardians array
+        // Remove from guardians array with safe iteration
+        bool found = false;
         for (uint256 i = 0; i < guardians.length; i++) {
             if (guardians[i] == guardian) {
                 guardians[i] = guardians[guardians.length - 1];
                 guardians.pop();
+                found = true;
                 break;
             }
         }
+        require(found, "Guardian not found in array");
 
         emit GuardianRemoved(guardian);
     }
@@ -444,7 +444,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line missing-zero-check
      */
     function blacklistAddress(address wallet) external onlyOwner {
-        // @audit-ok Multi-signature not required in current implementation
+        require(wallet != address(0), "Invalid wallet address");
         isBlacklisted[wallet] = true;
         emit AddressBlacklisted(wallet);
     }
@@ -464,6 +464,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
      * // slither-disable-next-line missing-zero-check
      */
     function whitelistAddress(address wallet) external onlyOwner {
+        require(wallet != address(0), "Invalid wallet address");
         isBlacklisted[wallet] = false;
         emit AddressWhitelisted(wallet);
     }
@@ -485,7 +486,6 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     function addToContractWhitelist(
         address contractAddress
     ) external onlyOwner {
-        // @audit-ok Multi-signature not required in current implementation
         require(contractAddress != address(0), "Invalid contract address");
         require(
             contractAddress != address(this),
@@ -515,6 +515,7 @@ contract FierceToken is ERC20, Ownable, ReentrancyGuard, Pausable {
     function removeFromContractWhitelist(
         address contractAddress
     ) external onlyOwner {
+        require(contractAddress != address(0), "Invalid contract address");
         require(
             contractWhitelist[contractAddress],
             "Contract not in whitelist"

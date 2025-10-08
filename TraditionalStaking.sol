@@ -180,7 +180,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
      * - Reward calculation accuracy is sufficient for staking purposes
      */
     function calculateCurrentRewards(address user, uint256 stakeIndex) public {
-        require(userStakes[user].length > stakeIndex, "Stake does not exist"); // ← AGREGAR ESTA LÍNEA
+        require(userStakes[user].length > stakeIndex, "Stake does not exist");
 
         StakeInfo storage stakeData = userStakes[user][stakeIndex];
         require(stakeData.active, "Stake not active");
@@ -291,7 +291,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         require(
             vestingSchedules[msg.sender].length > scheduleIndex,
             "Vesting schedule does not exist"
-        ); // ← AGREGAR ESTA LÍNEA
+        );
 
         VestingSchedule storage schedule = vestingSchedules[msg.sender][
             scheduleIndex
@@ -306,7 +306,9 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
 
         schedule.releasedAmount += unreleased;
         totalVestedTokens -= unreleased;
-        token.transfer(msg.sender, unreleased);
+        
+        bool success = token.transfer(msg.sender, unreleased);
+        require(success, "Token transfer failed");
 
         emit TokensReleased(msg.sender, unreleased);
     }
@@ -318,6 +320,11 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         address beneficiary,
         uint256 scheduleIndex
     ) public view returns (uint256) {
+        require(
+            vestingSchedules[beneficiary].length > scheduleIndex,
+            "Vesting schedule does not exist"
+        );
+
         VestingSchedule storage schedule = vestingSchedules[beneficiary][
             scheduleIndex
         ];
@@ -374,7 +381,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         address user,
         uint256 stakeIndex
     ) external view returns (uint256) {
-        require(userStakes[user].length > stakeIndex, "Stake does not exist"); // ← AGREGAR ESTA LÍNEA
+        require(userStakes[user].length > stakeIndex, "Stake does not exist");
 
         StakeInfo memory stakeData = userStakes[user][stakeIndex];
         if (!stakeData.active) return 0;
@@ -401,6 +408,7 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         address user,
         uint256 stakeIndex
     ) external view returns (StakeInfo memory) {
+        require(userStakes[user].length > stakeIndex, "Stake does not exist");
         return userStakes[user][stakeIndex];
     }
 
@@ -408,6 +416,10 @@ contract TraditionalStaking is Ownable, ReentrancyGuard, Pausable {
         address user,
         uint256 vestingIndex
     ) external view returns (VestingSchedule memory) {
+        require(
+            vestingSchedules[user].length > vestingIndex,
+            "Vesting schedule does not exist"
+        );
         return vestingSchedules[user][vestingIndex];
     }
 
